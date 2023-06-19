@@ -1,0 +1,9 @@
+{% for value in option.values %}
+  <div
+    class="color-swatch"
+    style="background-color: {{ value | handle }};"
+    data-value="{{ value | escape }}"
+    data-label="{{ value | escape }}"
+    data-title="{{ value | escape }}"
+  ></div>
+{% endfor %}

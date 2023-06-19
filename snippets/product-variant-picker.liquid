@@ -1,0 +1,228 @@
+{% comment %}
+  Renders product variant-picker
+
+  Accepts:
+  - product: {Object} product object.
+  - block: {Object} passing the block information.
+  - product_form_id: {String} Id of the product form to which the variant picker is associated.
+  - update_url: {Boolean} whether or not to update url when changing variants. If false, the url isn't updated. Default: true (optional).
+  Usage:
+  {% render 'product-variant-picker', product: product, block: block, product_form_id: product_form_id %}
+{% endcomment %}
+
+{% unless product.has_only_default_variant %}
+  <variant-radios
+    class="no-js-hidden product-form__option"
+    data-section="{{ section.id }}"
+    data-url="{{ product.url }}"
+    id="product-select"
+  >
+    {%- for option in product.options_with_values -%}
+      {% if option.name == 'Color' %}
+        <fieldset class="js product-form__input">
+          <legend class="form__label">{{ option.name }}</legend>
+          {%- for value in option.values -%}
+            <input
+              type="radio"
+              id="{{ section.id }}-{{ option.position }}-{{ forloop.index0 }}"
+              name="{{ option.name }}"
+              value="{{ value | escape }}"
+              form="{{ product_form_id }}"
+              class="color-btn  color-variant-select"
+              {% if option.selected_value == value %}
+                checked
+              {% endif %}
+              onchange="handleColorChange(this)"
+            >
+
+            {% if product.variants[forloop.index0].metafields.color.values %}
+              <label
+                for="{{ section.id }}-{{ option.position }}-{{ forloop.index0 }}"
+                style="background-color: {{product.variants[forloop.index0].metafields.color.values}}"
+              >
+                &nbsp;
+              </label>
+            {% else %}
+              <label for="{{ section.id }}-{{ option.position }}-{{ forloop.index0 }}">
+                {{ value }}
+              </label>
+            {% endif %}
+          {%- endfor -%}
+        </fieldset>
+      {% else %}
+        <fieldset class="js product-form__input hidden">
+          <legend class="form__label">{{ option.name }}</legend>
+          {%- for value in option.values -%}
+            <input
+              type="radio"
+              id="{{ section.id }}-{{ option.position }}-{{ forloop.index0 }}"
+              name="{{ option.name }}"
+              value="{{ value | escape }}"
+              form="{{ product_form_id }}"
+              {% if option.selected_value == value %}
+                checked
+              {% endif %}
+            >
+            <label for="{{ section.id }}-{{ option.position }}-{{ forloop.index0 }}">{{ value }}</label>
+          {%- endfor -%}
+        </fieldset>
+      {% endif %}
+    {%- endfor -%}
+    <script type="application/json">
+      {{ product.variants | json }}
+    </script>
+  </variant-radios>
+
+  <variant-selects
+    class="no-js-hidden"
+    data-section="{{ section.id }}"
+    data-url="{{ product.url }}"
+  >
+    {%- for option in product.options_with_values -%}
+      {% if option.name == 'Color' %}
+        <div class="product-form__input product-form__input--dropdown hidden-color-dropdown">
+          <label class="form__label" for="Option-{{ section.id }}-{{ forloop.index0 }}">
+            {{ option.name }}
+          </label>
+          <div class="select">
+            <select
+              id="Option-{{ section.id }}-{{ forloop.index0 }}"
+              class="select__select"
+              name="options[{{ option.name | escape }}]"
+              form="{{ product_form_id }}"
+              onchange="handleOptionChange()"
+            >
+              {%- for value in option.values -%}
+                <option
+                  value="{{ value | escape }}"
+                  {% if option.selected_value == value %}
+                    selected="selected"
+                  {% endif %}
+                >
+                  {{ value }}
+                </option>
+              {%- endfor -%}
+            </select>
+            {% render 'icon-caret' %}
+          </div>
+        </div>
+      {% else %}
+        <div class="product-form__input product-form__input--dropdown">
+          <label class="form__label" for="Option-{{ section.id }}-{{ forloop.index0 }}">
+            {{ option.name }}
+          </label>
+          <div class="select">
+            <select
+              id="Option-{{ section.id }}-{{ forloop.index0 }} "
+              class="select__select  size-variant-select"
+              name="options[{{ option.name | escape }}]"
+              form="{{ product_form_id }}"
+              onchange="handleOptionChange()"
+            >
+              <option
+                value="unselected"
+                {% unless option.selected_value %}
+                  selected="selected"
+                {% endunless %}
+              >
+                {{ 'Unselected' }}
+              </option>
+              {%- for value in option.values -%}
+                <option
+                  value="{{ value | escape }}"
+                  {% if option.selected_value == value %}
+                    selected="selected"
+                  {% endif %}
+                >
+                  {{ value }}
+                </option>
+              {%- endfor -%}
+            </select>
+            {% render 'icon-caret' %}
+          </div>
+        </div>
+      {% endif %}
+    {%- endfor -%}
+
+    <script type="application/json">
+      {{ product.variants | json }}
+    </script>
+  </variant-selects>
+{%- endunless -%}
+
+<noscript class="product-form__noscript-wrapper-{{ section.id }}">
+  <div class="product-form__input{% if product.has_only_default_variant %} hidden{% endif %}">
+    <label class="form__label" for="Variants-{{ section.id }}">{{ 'products.product.product_variants' | t }}</label>
+    <div class="select">
+      <select name="id" id="Variants-{{ section.id }}" class="select__select" form="{{ product_form_id }}">
+        {%- for variant in product.variants -%}
+          <option
+            {% if variant == product.selected_or_first_available_variant %}
+              selected="selected"
+            {% endif %}
+            {% if variant.available == false %}
+              disabled
+            {% endif %}
+            value="{{ variant.id }}"
+          >
+            {{ variant.title }}
+            {%- if variant.available == false %} - {{ 'products.product.sold_out' | t }}{% endif %}
+            - {{ variant.price | money | strip_html }}
+          </option>
+        {%- endfor -%}
+      </select>
+      {% render 'icon-caret' %}
+    </div>
+  </div>
+</noscript>
+
+<script>
+  // Set the option to "Unselected" on page load
+  window.addEventListener('load', function () {
+    var selectInputs = document.querySelectorAll('.product-form__input--dropdown select');
+    selectInputs.forEach(function (selectInput) {
+      selectInput.value = 'unselected';
+    });
+  });
+
+  // Event listener for changing color option
+  function handleColorChange(radioInput) {
+    var colorSelectInput = document.querySelector('.product-form__input--dropdown select[name="options[Color]"]');
+    colorSelectInput.value = radioInput.value;
+  }
+
+  // Event listener for changing variant options
+  function handleOptionChange() {
+    var addToCartButton = document.querySelector('.product-form__cart-submit');
+    var selectInputs = document.querySelectorAll('.product-form__input--dropdown select');
+    var selectedValues = Array.from(selectInputs).map(function (selectInput) {
+      return selectInput.value;
+    });
+
+    var selectedVariant = getProductVariantByOptionValues(selectedValues);
+    if (selectedVariant && selectedVariant.available) {
+      // Enable add to cart button
+      addToCartButton.disabled = false;
+    } else {
+      // Disable add to cart button
+      addToCartButton.disabled = true;
+    }
+  }
+
+  // Get the variant object based on selected option values
+  function getProductVariantByOptionValues(selectedValues) {
+    var variantsJson = document.querySelector('[data-section="{{ section.id }}"] script[type="application/json"]');
+    var variants = JSON.parse(variantsJson.textContent || variantsJson.innerText);
+
+    return variants.find(function (variant) {
+      return variant.options.every(function (option, index) {
+        return option === selectedValues[index];
+      });
+    });
+  }
+</script>
+<style>
+  .hidden-color-dropdown{
+   display: none;
+  }
+</style>
